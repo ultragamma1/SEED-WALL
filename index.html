@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script>
+const CONFIG = {
+  SHEET_ID: "2PACX-1vSML6gg1Dtto69p2UZi3Aitf-Ke-z8ZE0ar_CwNRbywc8fPjh2ty5XMWlacaxrDQqNjfoFlU9pRvQRb",
+  GID: "218057891",
+  HEADER_TEXT: "🔴 Plant A SEED - Recognize someone",
+  SCROLL_SPEED: 1.0,
+  FONT_SIZE: "32px",
+  LEFT_MARGIN: "0px",
+  AUTO_REFRESH_MS: 5000,
+  MAX_COMMENTS: 20,
+  REPEATS_PER_COMMENT: 5
+};
+</script>
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { 
+  width: 100%; height: 100vh; overflow: hidden; 
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  font-size: var(--font-size);
+}
+
+.header {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 80px;
+  background: #283266;
+  color: white; font-size: 42px; font-weight: 700; text-align: center;
+  line-height: 80px; z-index: 1000; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.scroll-container {
+  width: 100vw; height: 100vh; 
+  padding: 100px 0 0 var(--left-margin); overflow: hidden;
+}
+
+.text-scroller {
+  position: relative; height: 500vh;
+  width: 90%; margin: 0 auto;
+  background: rgba(255,255,255,0.95); border-radius: 8px;
+  box-shadow: 0 15px 50px rgba(0,0,0,0.4); padding: 40px;
+}
+
+.comment {
+  height: 100vh; padding: 60px 40px; opacity: 0.95;
+  border-bottom: 4px solid rgba(0,0,0,0.1); font-size: 1.4em;
+  line-height: 1.6; color: #333; display: flex; align-items: center; justify-content: center;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+<div class="header" id="header"></div>
+<div class="scroll-container" id="scroller">
+  <div class="text-scroller" id="textContainer">
+    <div class="comment">Loading real comments from sheet...</div>
+  </div>
+</div>
+
+<script>
+// Apply CONFIG
+document.documentElement.style.setProperty('--font-size', CONFIG.FONT_SIZE);
+document.documentElement.style.setProperty('--left-margin', CONFIG.LEFT_MARGIN);
+document.getElementById('header').textContent = CONFIG.HEADER_TEXT;
+
+const scroller = document.getElementById('scroller');
+const container = document.getElementById('textContainer');
+let scrollY = 0;
+
+const baseVizUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&gid=${CONFIG.GID}`;
+
+function loadComments() {
+  const vizUrl = baseVizUrl + '&t=' + new Date().getTime();
+  fetch(vizUrl)
+    .then(response => response.text())
+    .then(text => {
+      const jsonMatch = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\);/);
+      if (!jsonMatch || !jsonMatch[1]) {
+        throw new Error('No valid JSON found in response');
+      }
+      const data = JSON.parse(jsonMatch[1]);
+      const rows = data.table.rows || [];
+      let comments = [];
+
+      rows.forEach(row => {
+        const cells = row.c || [];
+        // Column B (index 1) contains your comments
+        if (cells[1] && cells[1].v !== null && cells[1].v !== undefined) {
+          const comment = String(cells[1].v).trim();
+          if (comment) comments.push(comment);
+        }
+      });
+
+      container.innerHTML = '';
+      if (comments.length === 0) {
+        container.innerHTML = '<div class="comment">No comments yet – submit via QR code!</div>';
+      } else {
+        comments.slice(0, CONFIG.MAX_COMMENTS).forEach(comment => {
+          for (let i = 0; i < CONFIG.REPEATS_PER_COMMENT; i++) {
+            const div = document.createElement('div');
+            div.className = 'comment';
+            div.textContent = comment;
+            container.appendChild(div);
+          }
+        });
+      }
+
+      scrollY = 0;
+      scroller.scrollTop = 0;
+    })
+    .catch(err => {
+      console.error('Error loading sheet data:', err);
+      container.innerHTML = '<div class="comment">Cannot load sheet data locally (CORS block). Host online for real sync!</div>';
+    });
+}
+
+loadComments();
+setInterval(loadComments, CONFIG.AUTO_REFRESH_MS);
+
+function smoothTextScroll() {
+  scrollY += CONFIG.SCROLL_SPEED;
+  scroller.scrollTop = scrollY;
+
+  const totalHeight = scroller.scrollHeight;
+  const viewportHeight = scroller.clientHeight;
+  const buffer = viewportHeight * 1.2;
+
+  if (scrollY >= totalHeight - viewportHeight - buffer) {
+    scrollY = 0;
+    scroller.scrollTop = 0;
+  }
+
+  requestAnimationFrame(smoothTextScroll);
+}
+requestAnimationFrame(smoothTextScroll);
+</script>
+</body>
+</html>
