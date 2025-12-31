@@ -3,8 +3,8 @@
 <head>
 <script>
 const CONFIG = {
-  SHEET_ID: "2PACX-1vSML6gg1Dtto69p2UZi3Aitf-Ke-z8ZE0ar_CwNRbywc8fPjh2ty5XMWlacaxrDQqNjfoFlU9pRvQRb",
-  GID: "218057891",
+  SHEET_URL: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSML6gg1Dtto69p2UZi3Aitf-Ke-z8ZE0ar_CwNRbywc8fPjh2ty5XMWlacaxrDQqNjfoFlU9pRvQRb/pubhtml?gid=218057891&single=true",
+  PROXY: "https://corsproxy.io/?",  // Stable public proxy (works on hosted pages)
   HEADER_TEXT: "🔴 Plant A SEED - Recognize someone",
   SCROLL_SPEED: 1.0,
   FONT_SIZE: "32px",
@@ -69,29 +69,26 @@ const scroller = document.getElementById('scroller');
 const container = document.getElementById('textContainer');
 let scrollY = 0;
 
-const baseVizUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&gid=${CONFIG.GID}`;
-
 function loadComments() {
-  const vizUrl = baseVizUrl + '&t=' + new Date().getTime();
-  fetch(vizUrl)
+  const url = CONFIG.PROXY + encodeURIComponent(CONFIG.SHEET_URL + '&t=' + new Date().getTime());
+  fetch(url)
     .then(response => response.text())
-    .then(text => {
-      const jsonMatch = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\);/);
-      if (!jsonMatch || !jsonMatch[1]) {
-        throw new Error('No valid JSON found in response');
-      }
-      const data = JSON.parse(jsonMatch[1]);
-      const rows = data.table.rows || [];
+    .then(html => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const tables = doc.querySelectorAll('table');
       let comments = [];
 
-      rows.forEach(row => {
-        const cells = row.c || [];
-        // Column B (index 1) contains your comments
-        if (cells[1] && cells[1].v !== null && cells[1].v !== undefined) {
-          const comment = String(cells[1].v).trim();
-          if (comment) comments.push(comment);
-        }
-      });
+      if (tables.length > 0) {
+        const rows = tables[0].querySelectorAll('tr');
+        rows.forEach(row => {
+          const cells = row.querySelectorAll('td');
+          if (cells.length > 1) {
+            const text = cells[1].innerText.trim();
+            if (text) comments.push(text);
+          }
+        });
+      }
 
       container.innerHTML = '';
       if (comments.length === 0) {
@@ -111,8 +108,8 @@ function loadComments() {
       scroller.scrollTop = 0;
     })
     .catch(err => {
-      console.error('Error loading sheet data:', err);
-      container.innerHTML = '<div class="comment">Cannot load sheet data locally (CORS block). Host online for real sync!</div>';
+      console.error('Error:', err);
+      container.innerHTML = '<div class="comment">Temporary loading issue – retrying in 5s...</div>';
     });
 }
 
