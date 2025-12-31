@@ -7,108 +7,48 @@
 
 <script>
 /*
-  Configuration
-  SCROLL_SPEED is in pixels per second (px/s) for the transform animation.
+  CONFIG
+  - SCROLL_SPEED is px/sec
+  - Set PROXY to your serverless endpoint (recommended) or "" to try without proxy.
 */
 const CONFIG = {
   SHEET_URL: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSML6gg1Dtto69p2UZi3Aitf-Ke-z8ZE0ar_CwNRbywc8fPjh2ty5XMWlacaxrDQqNjfoFlU9pRvQRb/pubhtml?gid=218057891&single=true",
-  PROXY: "https://corsproxy.io/?",  // Optional: keep empty to avoid proxy
+  PROXY: "",  // e.g. "/.netlify/functions/proxy?url=" or "" to attempt direct fetch
   HEADER_TEXT: "🔴 Plant A SEED - Recognize someone",
-  SCROLL_SPEED: 40,        // px per second
+  SCROLL_SPEED: 40,
   FONT_SIZE: "32px",
   LEFT_MARGIN: "0px",
   AUTO_REFRESH_MS: 5000,
-  MAX_COMMENTS: 20,
+  MAX_COMMENTS: 350,
   REPEATS_PER_COMMENT: 2
 };
 </script>
 
 <style>
-:root {
-  --font-size: 32px;
-  --left-margin: 0px;
-  --header-height: 80px;
-}
+:root { --font-size:32px; --left-margin:0px; --header-height:80px; }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:Segoe UI,Arial,sans-serif;background:linear-gradient(135deg,#667eea,#764ba2);font-size:var(--font-size)}
+.header{position:fixed;top:0;left:0;right:0;height:var(--header-height);background:#283266;color:#fff;text-align:center;line-height:var(--header-height);font-weight:700;z-index:1000;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.app{padding-top:calc(var(--header-height)+20px);padding-left:var(--left-margin);min-height:calc(100vh - var(--header-height));display:flex;justify-content:center}
+.scroller{width:min(1100px,95%);max-width:1200px;background:rgba(255,255,255,0.95);border-radius:8px;padding:24px;box-shadow:0 15px 50px rgba(0,0,0,.35);position:relative;height:calc(100vh - var(--header-height) - 40px);overflow:hidden}
+.viewport{width:100%;height:100%;overflow:hidden;position:relative}
+.scroll-content{position:absolute;top:0;left:0;right:0;will-change:transform}
+.comment-list{display:flex;flex-direction:column;gap:12px}
+.comment{padding:32px;border-radius:8px;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.06);color:#222;font-size:1.2rem;line-height:1.5;text-align:center}
+.status{position:absolute;right:12px;top:12px;font-size:.85rem;background:rgba(0,0,0,.06);padding:6px 10px;border-radius:6px}
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html,body { height: 100%; width:100%; font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); font-size: var(--font-size); }
+/* Animation placeholder; keyframes will be injected dynamically */
+@keyframes scrollAnim { from { transform: translateY(0); } to { transform: translateY(calc(var(--singleHeight) * -1px)); } }
 
-.header {
-  position: fixed; top: 0; left: 0; right:0; height: var(--header-height);
-  background: #283266; color: #fff; font-size: 1.2rem; font-weight: 700;
-  text-align: center; line-height: var(--header-height); z-index: 1000;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-}
-
-.app {
-  padding-top: calc(var(--header-height) + 20px);
-  padding-left: var(--left-margin);
-  min-height: calc(100vh - var(--header-height));
-  display: flex; align-items: flex-start; justify-content: center;
-}
-
-.scroller {
-  width: min(1100px, 95%); max-width: 1200px;
-  background: rgba(255,255,255,0.95); border-radius: 8px; padding: 24px;
-  box-shadow: 0 15px 50px rgba(0,0,0,0.35);
-  overflow: hidden; position: relative;
-  height: calc(100vh - var(--header-height) - 40px); /* visible area for animation */
-}
-
-/* viewport that hides overflow; content will be transformed */
-.viewport {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  position: relative;
-}
-
-/* Will hold two copies of the comment list for seamless loop */
-.scroll-content {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  will-change: transform;
-}
-
-/* Container holding repeated comment blocks stacked vertically */
-.comment-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* Each comment sizes to its content, not a fixed viewport height */
-.comment {
-  padding: 32px; border-radius: 8px; background: #fff;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.06); color: #222;
-  font-size: 1.2rem; line-height: 1.5; text-align: center;
-}
-
-/* small status bar */
-.status {
-  position: absolute; right: 12px; top: 12px; font-size: 0.85rem;
-  background: rgba(0,0,0,0.06); padding: 6px 10px; border-radius: 6px;
-}
-
-/* Respect users who prefer reduced motion */
+/* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .scroller { overflow: auto; }
-  .viewport, .scroll-content { transform: none !important; transition: none !important; will-change: auto !important; }
-}
-
-/* small responsive adjustments */
-@media (max-width: 600px) {
-  :root { --font-size: 18px; }
-  .comment { padding: 18px; font-size: 1rem; }
-  .status { font-size: 0.75rem; }
+  .scroller{overflow:auto}
+  .viewport,.scroll-content{transform:none !important;transition:none !important;will-change:auto !important}
 }
 </style>
 </head>
 <body>
   <div class="header" id="header" role="banner"></div>
-
   <main class="app" role="main">
     <section class="scroller" id="scroller" aria-label="Seed wall comments">
       <div class="status" id="status">Loading…</div>
@@ -119,41 +59,33 @@ html,body { height: 100%; width:100%; font-family: 'Segoe UI', Arial, sans-serif
   </main>
 
 <script>
-/* Apply CONFIG styling */
 document.documentElement.style.setProperty('--font-size', CONFIG.FONT_SIZE);
 document.documentElement.style.setProperty('--left-margin', CONFIG.LEFT_MARGIN);
 document.getElementById('header').textContent = CONFIG.HEADER_TEXT;
 
-const scroller = document.getElementById('scroller');
 const viewport = document.getElementById('viewport');
 const scrollContent = document.getElementById('scrollContent');
 const statusEl = document.getElementById('status');
-
-let retryDelay = 1000;
-let lastSuccess = null;
-let rafId = null;
-let animationState = {
-  running: false,
-  lastTime: null,
-  offset: 0,
-  singleHeight: 0
-};
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* Utility: build fetch URL with optional proxy and cache-bust */
+let retryDelay = 1000;
+let singleHeight = 0;
+let dynamicKeyframeId = 'dynamic-scroll-keyframes';
+
+/* Build fetch URL (proxy optional) */
 function buildFetchUrl() {
   const t = Date.now();
   const sheetUrlWithT = CONFIG.SHEET_URL + (CONFIG.SHEET_URL.includes('?') ? '&' : '?') + 't=' + t;
-  return (CONFIG.PROXY && CONFIG.PROXY.trim() !== '') ? (CONFIG.PROXY + encodeURIComponent(sheetUrlWithT)) : sheetUrlWithT;
+  return CONFIG.PROXY && CONFIG.PROXY.trim() !== '' ? (CONFIG.PROXY + encodeURIComponent(sheetUrlWithT)) : sheetUrlWithT;
 }
 
-/* Parse published HTML table -> array of comment strings */
+/* Parse sheet HTML -> comments */
 function parseCommentsFromHtml(htmlText) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(htmlText, 'text/html');
   const tables = doc.querySelectorAll('table');
   const comments = [];
-  if (tables.length === 0) return comments;
+  if (!tables.length) return comments;
   const rows = tables[0].querySelectorAll('tr');
   rows.forEach(row => {
     const cells = row.querySelectorAll('td');
@@ -165,146 +97,136 @@ function parseCommentsFromHtml(htmlText) {
   return comments;
 }
 
-/* Render comments into the scrollContent and create duplication for seamless loop */
+/* Render comments, duplicate list, then apply animation */
 function renderComments(comments) {
-  // Build one single list
-  const singleList = document.createElement('div');
-  singleList.className = 'comment-list single';
+  // build single column
+  const single = document.createElement('div');
+  single.className = 'comment-list single';
   const frag = document.createDocumentFragment();
-
-  if (!comments || comments.length === 0) {
-    const el = document.createElement('div');
-    el.className = 'comment';
-    el.textContent = 'No comments yet — submit via QR code!';
-    frag.appendChild(el);
+  if (!comments || !comments.length) {
+    const el = document.createElement('div'); el.className = 'comment'; el.textContent = 'No comments yet — submit via QR code!'; frag.appendChild(el);
   } else {
-    comments.slice(0, CONFIG.MAX_COMMENTS).forEach(comment => {
-      for (let i = 0; i < (CONFIG.REPEATS_PER_COMMENT || 1); i++) {
-        const el = document.createElement('div');
-        el.className = 'comment';
-        el.textContent = comment;
-        frag.appendChild(el);
+    comments.slice(0, CONFIG.MAX_COMMENTS).forEach(c => {
+      for (let i=0;i<(CONFIG.REPEATS_PER_COMMENT||1);i++){
+        const e = document.createElement('div'); e.className='comment'; e.textContent = c; frag.appendChild(e);
       }
     });
   }
-  singleList.appendChild(frag);
+  single.appendChild(frag);
 
-  // Clear previous content and append single + clone (duplicate)
+  // replace content and duplicate
   scrollContent.innerHTML = '';
-  scrollContent.appendChild(singleList);
-  const clone = singleList.cloneNode(true);
+  scrollContent.appendChild(single);
+  const clone = single.cloneNode(true);
   scrollContent.appendChild(clone);
 
-  // After DOM insertion measure heights
-  // Use requestAnimationFrame to ensure layout is complete
-  requestAnimationFrame(() => {
-    const rect = singleList.getBoundingClientRect();
-    animationState.singleHeight = Math.ceil(rect.height); // px
-    // If content is too short to need animation, center it and stop.
-    const viewportHeight = viewport.clientHeight;
-    if (animationState.singleHeight <= viewportHeight || prefersReducedMotion) {
-      stopAnimation();
-      // Ensure content is positioned at top, allow manual scrolling if reduced-motion
-      scrollContent.style.transform = 'translateY(0px)';
-      if (prefersReducedMotion) {
-        // allow user scroll
-        viewport.style.overflow = 'auto';
+  // Wait until layout is stable: fonts and images may change height
+  // Use document.fonts.ready if available, then measure in rAF
+  const afterFonts = (window.document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+  afterFonts.then(() => {
+    // Ensure layout complete on next frame
+    requestAnimationFrame(() => {
+      const rect = single.getBoundingClientRect();
+      singleHeight = rect.height;
+      console.log('measured singleHeight=', singleHeight, 'viewportH=', viewport.clientHeight);
+      if (singleHeight <= viewport.clientHeight || prefersReducedMotion) {
+        // stop animation; center/top as desired
+        applyAnimation(false);
+        scrollContent.style.transform = 'translateY(0)';
+        viewport.style.overflow = prefersReducedMotion ? 'auto' : 'hidden';
       } else {
         viewport.style.overflow = 'hidden';
+        applyAnimation(true);
       }
-    } else {
-      // content taller than viewport: start animation
-      viewport.style.overflow = 'hidden';
-      startAnimation();
-    }
+    });
   });
 }
 
-/* Fetch + retry logic with exponential backoff */
+/* Apply or remove CSS animation (CSS keyframe) */
+function applyAnimation(enable) {
+  // remove any existing dynamic style
+  const existing = document.getElementById(dynamicKeyframeId);
+  if (existing) existing.remove();
+
+  scrollContent.style.animation = 'none';
+  if (!enable) return;
+
+  // create dynamic keyframe CSS that translates by -singleHeight px
+  const duration = singleHeight / CONFIG.SCROLL_SPEED; // seconds
+  const css = `
+    @keyframes dynamicScroll {
+      from { transform: translateY(0); }
+      to   { transform: translateY(-${singleHeight}px); }
+    }
+  `;
+  const styleEl = document.createElement('style');
+  styleEl.id = dynamicKeyframeId;
+  styleEl.textContent = css;
+  document.head.appendChild(styleEl);
+
+  // apply animation: linear, infinite. Use translate3d for GPU
+  scrollContent.style.animation = `dynamicScroll ${duration}s linear infinite`;
+  scrollContent.style.willChange = 'transform';
+}
+
+/* Fetch + retry */
 async function loadComments() {
   const url = buildFetchUrl();
   statusEl.textContent = 'Loading…';
   try {
     const res = await fetch(url);
-    if (!res.ok) throw new Error('Network response was not ok: ' + res.status);
+    if (!res.ok) throw new Error('Network response not ok: ' + res.status);
     const html = await res.text();
     const comments = parseCommentsFromHtml(html);
     renderComments(comments);
     retryDelay = 1000;
-    lastSuccess = new Date();
-    statusEl.textContent = 'Updated ' + lastSuccess.toLocaleTimeString();
+    statusEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
   } catch (err) {
-    console.error('Error loading comments:', err);
+    console.error('Error fetching sheet:', err);
     statusEl.textContent = 'Temporary loading issue — retrying…';
     setTimeout(loadComments, retryDelay);
     retryDelay = Math.min(retryDelay * 2, 60000);
   }
 }
 
-/* Animation loop using translateY on scrollContent. We only move by offset (0..singleHeight) and use the duplicate to appear seamless. */
-function animate(now) {
-  if (!animationState.running) return;
-  if (!animationState.lastTime) animationState.lastTime = now;
-  const elapsed = now - animationState.lastTime;
-  animationState.lastTime = now;
-
-  // pixels to move this frame
-  const delta = (CONFIG.SCROLL_SPEED * elapsed) / 1000; // px
-  animationState.offset += delta;
-
-  // wrap via modulo to keep offset bounded [0, singleHeight)
-  if (animationState.singleHeight > 0) {
-    animationState.offset = animationState.offset % animationState.singleHeight;
-  }
-
-  // apply transform: negative offset to move content up
-  scrollContent.style.transform = `translateY(${-Math.round(animationState.offset)}px)`;
-  rafId = requestAnimationFrame(animate);
-}
-
-function startAnimation() {
-  // restart state
-  stopAnimation(); // ensure no double RAF
-  if (prefersReducedMotion) return;
-  if (!animationState.singleHeight || animationState.singleHeight <= viewport.clientHeight) return;
-  animationState.running = true;
-  animationState.lastTime = null;
-  animationState.offset = 0;
-  rafId = requestAnimationFrame(animate);
-}
-
-function stopAnimation() {
-  animationState.running = false;
-  animationState.lastTime = null;
-  if (rafId) {
-    cancelAnimationFrame(rafId);
-    rafId = null;
-  }
-}
-
-/* Initialize: load comments and set up polling */
+/* Start polling */
 loadComments();
-setInterval(() => {
-  loadComments();
-}, CONFIG.AUTO_REFRESH_MS);
+setInterval(loadComments, CONFIG.AUTO_REFRESH_MS);
 
-/* If reduced-motion preference changes dynamically, react */
+/* Responsiveness: if viewport resized, re-measure and reapply animation */
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    // If we have content, re-measure the single list height and reapply
+    const single = document.querySelector('.comment-list.single');
+    if (single) {
+      requestAnimationFrame(() => {
+        singleHeight = single.getBoundingClientRect().height;
+        if (singleHeight <= viewport.clientHeight || prefersReducedMotion) {
+          applyAnimation(false);
+        } else {
+          applyAnimation(true);
+        }
+      });
+    }
+  }, 250);
+});
+
+/* React to reduced-motion changes */
 const mm = window.matchMedia('(prefers-reduced-motion: reduce)');
 mm.addEventListener && mm.addEventListener('change', (e) => {
   if (e.matches) {
-    // user requested reduced motion
-    stopAnimation();
+    applyAnimation(false);
     viewport.style.overflow = 'auto';
   } else {
-    viewport.style.overflow = 'hidden';
-    // restart animation if applicable
-    if (animationState.singleHeight > viewport.clientHeight) startAnimation();
+    // re-evaluate if we should animate
+    const single = document.querySelector('.comment-list.single');
+    if (single) {
+      singleHeight = single.getBoundingClientRect().height;
+      if (singleHeight > viewport.clientHeight) applyAnimation(true);
+    }
   }
-});
-
-/* Cleanup on unload */
-window.addEventListener('beforeunload', () => {
-  stopAnimation();
 });
 </script>
 </body>
